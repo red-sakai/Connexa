@@ -1,9 +1,19 @@
 "use client"
 import Button from "../ui/Button";
+import { useEffect, useState } from "react";
 
 export default function Hero() {
+  const [showDivider, setShowDivider] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setShowDivider(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen w-full flex items-center justify-center relative overflow-hidden pt-16">
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden pt-16">
       {/* Animated background decorations */}
       <div aria-hidden className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute w-72 h-72 bg-indigo-400/40 rounded-full blur-3xl animate-float-slow top-[-4rem] left-[-4rem]" />
@@ -33,6 +43,21 @@ export default function Hero() {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Squiggly divider (appears on scroll) */}
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-x-0 bottom-0 z-0 transition-all duration-700 ease-out ${
+          showDivider ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+        }`}
+      >
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="w-full h-24 md:h-40">
+          <path
+            fill="#ffffff"
+            d="M0,224 C120,202.7 240,181.3 360,170.7 C480,160 600,160 720,176 C840,192 960,224 1080,213.3 C1200,202.7 1320,149.3 1440,128 L1440,320 L0,320 Z"
+          />
+        </svg>
       </div>
 
       <style jsx>{`
