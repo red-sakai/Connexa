@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Button from "../ui/Button";
 import { useRouter } from "next/navigation";
 import {
@@ -23,24 +23,31 @@ type EventItem = {
   liked: boolean;
   description: string;
   bannerClass: string;
-  ownerId?: string;        // added
-  eventAtISO?: string | null; // added
-  imageUrl?: string | null; // added
+  ownerId?: string;
+  eventAtISO?: string | null;
+  imageUrl?: string | null;
 };
 
-// Replace placeholders with an empty default
-const initialEvents: EventItem[] = [];
+type EventApi = {
+  id: string;
+  title: string;
+  host_name?: string | null;
+  event_at?: string | null;
+  location?: string | null;
+  description?: string | null;
+  owner_id?: string | null;
+  image_url?: string | null;
+};
 
 export default function Main() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userSub, setUserSub] = useState<string | null>(null);   // added
-  const [userRole, setUserRole] = useState<string | null>(null); // added
+  const [userSub, setUserSub] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
-  const PAGE_SIZE = 4;
-  // Delegation: event ids the current user can manage (delegated)
   const [delegateSet, setDelegateSet] = useState<Set<string>>(new Set());
+  const PAGE_SIZE = 4;
   const router = useRouter();
 
   // Decode JWT payload locally to extract sub/email/role
@@ -79,7 +86,7 @@ export default function Main() {
     const entries = await Promise.all(
       chunk.map(async (e) => ({ id: e.id, allowed: await isDelegatedFor(e.id) }))
     );
-    setDelegateSet((prev) => {
+    setDelegateSet((prev: Set<string>) => {
       const copy = new Set(prev);
       for (const { id, allowed } of entries) if (allowed) copy.add(id);
       return copy;
@@ -87,7 +94,7 @@ export default function Main() {
   }
 
   // Helper: fetch events list, hydrate first PAGE_SIZE, and check delegation for visible ones
-  async function fetchEvents() {
+  const fetchEvents = useCallback(async () => {
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const res = await fetch(`/api/events?ts=${Date.now()}`, {
@@ -102,7 +109,7 @@ export default function Main() {
         "bg-gradient-to-br from-purple-200 to-pink-100",
         "bg-gradient-to-br from-emerald-200 to-teal-100",
       ];
-      const mapped: EventItem[] = list.map((ev: any, i: number) => {
+      const mapped: EventItem[] = (list as EventApi[]).map((ev, i) => {
         const hostName = ev.host_name || "Organizer";
         return {
           id: ev.id,
@@ -136,15 +143,15 @@ export default function Main() {
     } catch {
       // ignore
     }
-  }
+  }, [PAGE_SIZE, checkDelegationForChunk]);
 
   // Add: hydrate a chunk with attendees_count
-  async function hydrateWithCounts(chunk: EventItem[]): Promise<EventItem[]> {
+  const hydrateWithCounts = useCallback(async (chunk: EventItem[]): Promise<EventItem[]> => {
     return Promise.all(
       chunk.map(async (e) => {
         try {
           const r = await fetch(`/api/events/${e.id}`, { cache: "no-store" });
-          const j = await r.json().catch(() => ({}));
+          const j = (await r.json().catch(() => ({}))) as { data?: { attendees_count?: number } };
           const cnt = r.ok ? (j?.data?.attendees_count ?? 0) : e.attendees;
           return { ...e, attendees: cnt };
         } catch {
@@ -152,7 +159,7 @@ export default function Main() {
         }
       })
     );
-  }
+  }, []);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -169,7 +176,7 @@ export default function Main() {
   // Initial feed load
   useEffect(() => {
     fetchEvents();
-  }, []);
+  }, [fetchEvents]);
 
   const userInitial = userEmail?.[0]?.toUpperCase() || "U";
 

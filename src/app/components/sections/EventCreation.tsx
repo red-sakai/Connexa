@@ -32,7 +32,7 @@ export default function EventCreation() {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: fd,
     });
-    const json = await res.json().catch(() => ({} as any));
+    const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
     if (!res.ok) {
       const msg = json?.error || res.statusText || "Upload failed";
       throw new Error(msg);
@@ -59,7 +59,7 @@ export default function EventCreation() {
         },
         body: JSON.stringify({ title, description, event_at, host_name: hostName || null, location: location || null }),
       });
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as { data?: { id?: string }; error?: string };
       if (!res.ok) {
         setError(body?.error || "Failed to create event");
         return;
@@ -78,9 +78,8 @@ export default function EventCreation() {
               },
               body: JSON.stringify({ image_url: imageUrl }),
             });
-            const putJson = await putRes.json().catch(() => ({}));
+            const putJson = (await putRes.json().catch(() => ({}))) as { error?: string };
             if (!putRes.ok) {
-              // Most common cause: column "image_url" does not exist
               setError(putJson?.error || "Failed to attach image to event. Ensure 'image_url' column exists.");
               return;
             }
@@ -88,8 +87,8 @@ export default function EventCreation() {
             setError("Image upload returned no URL. Check storage policies.");
             return;
           }
-        } catch (upErr: any) {
-          setError(`Image upload failed: ${upErr?.message || String(upErr)}`);
+        } catch (upErr: unknown) {
+          setError(`Image upload failed: ${upErr instanceof Error ? upErr.message : String(upErr)}`);
           return;
         }
       }

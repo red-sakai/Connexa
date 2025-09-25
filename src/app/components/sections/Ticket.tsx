@@ -4,9 +4,18 @@ import { useEffect, useState } from "react";
 import Button from "../ui/Button";
 
 type TicketProps = { eventId: string };
+type EventData = {
+  id?: string;
+  title?: string;
+  description?: string | null;
+  event_at?: string | null;
+  location?: string | null;
+  host_name?: string | null;
+  image_url?: string | null;
+};
 
 export default function Ticket({ eventId }: TicketProps) {
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [first, setFirst] = useState("");
@@ -22,11 +31,11 @@ export default function Ticket({ eventId }: TicketProps) {
     (async () => {
       try {
         const res = await fetch(`/api/events/${eventId}`);
-        const body = await res.json().catch(() => ({}));
+        const body = (await res.json().catch(() => ({}))) as { data?: EventData; error?: string };
         if (!res.ok) {
           if (mounted) setErr(body?.error || "Event not found");
         } else if (mounted) {
-          setEvent(body.data);
+          setEvent(body.data ?? null);
         }
       } catch {
         if (mounted) setErr("Failed to load event");
@@ -166,9 +175,9 @@ export default function Ticket({ eventId }: TicketProps) {
                 </form>
               ) : (
                 <div className="text-center">
-                  <h2 className="text-xl font-semibold text-gray-900">You're in!</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">You&rsquo;re in!</h2>
                   <p className="text-gray-600 mt-1">
-                    A confirmation will be sent to {email}. See you at {event.location || "the venue"}.
+                    A confirmation will be sent to {email}. See you at {event?.location || "the venue"}.
                   </p>
                   <div className="mt-6 flex gap-3 justify-center">
                     <Button href="/main" variant="outline">Back to feed</Button>
