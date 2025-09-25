@@ -1,15 +1,18 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "outline";
+  href?: string;
 };
 
 export default function Button({
   variant = "primary",
   className = "",
   children,
+  href,
   ...props
 }: ButtonProps) {
   const base =
@@ -18,6 +21,14 @@ export default function Button({
     variant === "primary"
       ? "bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 hover:shadow-2xl"
       : "border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 hover:scale-105 hover:shadow-xl";
+
+  if (href) {
+    return (
+      <Link href={href} className={`${base} ${variantClasses} ${className}`}>
+        {children}
+      </Link>
+    );
+  }
 
   return (
     <button className={`${base} ${variantClasses} ${className}`} {...props}>

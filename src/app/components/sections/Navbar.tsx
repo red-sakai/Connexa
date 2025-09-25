@@ -1,10 +1,23 @@
-import Button from "../ui/Button";
+"use client";
 import Button2 from "../ui/Button2";
+import { useRouter } from "next/navigation";
 
 export default function Navbar() {
+  const router = useRouter();
+
+  function scrollToSection(e: React.MouseEvent, id: string) {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      router.push(`/#${id}`);
+    }
+  }
+
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-100">
-      <nav className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto animate-fade-in">
+    <div className="absolute inset-x-0 top-0 z-20">
+      <nav className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto animate-fade-in bg-transparent">
         <div className="flex items-center space-x-2 group">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
             <span className="text-white font-bold">C</span>
@@ -17,7 +30,11 @@ export default function Navbar() {
             Features
             <span className="absolute inset-x-0 bottom-0 h-0.5 bg-indigo-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></span>
           </a>
-          <a href="#about" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300 relative group">
+          <a
+            href="#about"
+            onClick={(e) => scrollToSection(e, "about")}
+            className="text-gray-600 hover:text-indigo-600 transition-colors duration-300 relative group"
+          >
             About
             <span className="absolute inset-x-0 bottom-0 h-0.5 bg-indigo-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></span>
           </a>
@@ -28,10 +45,7 @@ export default function Navbar() {
         </div>
         
         <div className="space-x-4">
-          <button className="text-indigo-600 hover:text-indigo-800 transition-colors duration-300 hover:scale-105 transform">
-            Sign In
-          </button>
-          <Button2 className="shadow-lg hover:shadow-xl">
+          <Button2 href="/signin" className="!px-6 !py-3 !text-base !rounded-lg !shadow-xl hover:scale-105">
             Get Started
           </Button2>
         </div>
