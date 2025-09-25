@@ -1,12 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import type { IconType } from "react-icons";
-import { FiCalendar } from "react-icons/fi";
-import { FiUsers } from "react-icons/fi";
-import { FiList } from "react-icons/fi";
-import { FiShield } from "react-icons/fi";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiCalendar, FiUsers, FiList, FiShield, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { PiTicketBold } from "react-icons/pi";
 
 type Feature = {
@@ -35,6 +31,23 @@ export default function Features() {
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const swiping = useRef(false);
+
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const blockRef = useRef<HTMLDivElement | null>(null);
+  const [headerInView, setHeaderInView] = useState(false);
+  const [blockInView, setBlockInView] = useState(false);
+
+  useEffect(() => {
+    const opts: IntersectionObserverInit = { root: null, threshold: 0.15 };
+    const hObs = new IntersectionObserver(([e]) => setHeaderInView(e.isIntersecting), opts);
+    const bObs = new IntersectionObserver(([e]) => setBlockInView(e.isIntersecting), opts);
+    if (headerRef.current) hObs.observe(headerRef.current);
+    if (blockRef.current) bObs.observe(blockRef.current);
+    return () => {
+      hObs.disconnect();
+      bObs.disconnect();
+    };
+  }, []);
 
   const total = items.length;
   const goTo = (i: number) => {
@@ -114,16 +127,26 @@ export default function Features() {
   return (
     <section id="features" className="bg-white">
       <div className="max-w-7xl mx-auto px-6 py-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-4">
-          MVP features to ship this week
-        </h2>
-        <p className="text-gray-600 text-center max-w-3xl mx-auto mb-10">
-          A focused feature set to plan, publish, and manage community events quickly.
-        </p>
+        <div
+          ref={headerRef}
+          className={`transition-all duration-700 ease-out ${
+            headerInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
+        >
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-4">
+            MVP features to ship this week
+          </h2>
+          <p className="text-gray-600 text-center max-w-3xl mx-auto mb-10">
+            A focused feature set to plan, publish, and manage community events quickly.
+          </p>
+        </div>
 
         {/* Carousel */}
         <div
-          className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white"
+          ref={blockRef}
+          className={`relative overflow-hidden rounded-2xl border border-gray-200 bg-white transition-all duration-700 ease-out ${
+            blockInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}

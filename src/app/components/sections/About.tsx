@@ -1,18 +1,46 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
 export default function About() {
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [headerInView, setHeaderInView] = useState(false);
+  const [cardInView, setCardInView] = useState(false);
+
+  useEffect(() => {
+    const opts: IntersectionObserverInit = { threshold: 0.15 };
+    const hObs = new IntersectionObserver(([e]) => setHeaderInView(e.isIntersecting), opts);
+    const cObs = new IntersectionObserver(([e]) => setCardInView(e.isIntersecting), opts);
+    if (headerRef.current) hObs.observe(headerRef.current);
+    if (cardRef.current) cObs.observe(cardRef.current);
+    return () => {
+      hObs.disconnect();
+      cObs.disconnect();
+    };
+  }, []);
+
   return (
-    <section
-      id="about"
-      className="bg-gradient-to-br from-blue-50 to-indigo-100 px-6 pt-24 pb-8 md:pb-12 scroll-mt-24"
-    >
+    <section id="about" className="bg-white px-6 pt-24 pb-8 md:pb-12 scroll-mt-24">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10">
+        <div
+          ref={headerRef}
+          className={`text-center mb-10 transition-all duration-700 ease-out ${
+            headerInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
+        >
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900">About Connexa</h1>
           <p className="text-gray-600 mt-3">
             Built for the 7‑day Backend Development Challenge using Next.js and Supabase.
           </p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur rounded-2xl shadow-xl border border-white/60 p-6 md:p-8">
+        <div
+          ref={cardRef}
+          className={`bg-white/80 backdrop-blur rounded-2xl shadow-xl border border-white/60 p-6 md:p-8 transition-all duration-700 ease-out delay-150 ${
+            cardInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
+        >
           <h2 className="text-xl font-semibold text-gray-900 mb-3">Why this project?</h2>
           <p className="text-gray-700 leading-relaxed">
             This app was created to demonstrate a production‑minded backend in a tight timeframe.
