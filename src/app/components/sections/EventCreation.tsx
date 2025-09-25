@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../ui/Button";
+import Image from "next/image";
 
 export default function EventCreation() {
   const router = useRouter();
@@ -210,7 +211,13 @@ export default function EventCreation() {
               />
               {imagePreview && (
                 <div className="mt-3 rounded-lg overflow-hidden border border-gray-200">
-                  <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover" />
+                  <Image
+                    src={imagePreview}
+                    alt="Event banner preview"
+                    width={1200}
+                    height={600}
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
                 </div>
               )}
             </div>

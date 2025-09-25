@@ -11,6 +11,7 @@ import {
   FiClock,
   FiUsers,
 } from "react-icons/fi";
+import Image from "next/image";
 
 type EventItem = {
   id: string;
@@ -51,12 +52,12 @@ export default function Main() {
   const router = useRouter();
 
   // Decode JWT payload locally to extract sub/email/role
-  function parseTokenField<T = any>(token: string, field: string): T | null {
+  function parseTokenField<T = unknown>(token: string, field: string): T | null {
     try {
       const base64 = token.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/");
       if (!base64) return null;
       const payload = JSON.parse(atob(base64));
-      return payload?.[field] ?? null;
+      return (payload?.[field] ?? null) as T | null;
     } catch {
       return null;
     }
@@ -92,6 +93,22 @@ export default function Main() {
       return copy;
     });
   }
+
+  // Add: hydrate a chunk with attendees_count (moved above fetchEvents)
+  const hydrateWithCounts = useCallback(async (chunk: EventItem[]): Promise<EventItem[]> => {
+    return Promise.all(
+      chunk.map(async (e) => {
+        try {
+          const r = await fetch(`/api/events/${e.id}`, { cache: "no-store" });
+          const j = (await r.json().catch(() => ({}))) as { data?: { attendees_count?: number } };
+          const cnt = r.ok ? (j?.data?.attendees_count ?? 0) : e.attendees;
+          return { ...e, attendees: cnt };
+        } catch {
+          return e;
+        }
+      })
+    );
+  }, []);
 
   // Helper: fetch events list, hydrate first PAGE_SIZE, and check delegation for visible ones
   const fetchEvents = useCallback(async () => {
@@ -143,23 +160,7 @@ export default function Main() {
     } catch {
       // ignore
     }
-  }, [PAGE_SIZE, checkDelegationForChunk]);
-
-  // Add: hydrate a chunk with attendees_count
-  const hydrateWithCounts = useCallback(async (chunk: EventItem[]): Promise<EventItem[]> => {
-    return Promise.all(
-      chunk.map(async (e) => {
-        try {
-          const r = await fetch(`/api/events/${e.id}`, { cache: "no-store" });
-          const j = (await r.json().catch(() => ({}))) as { data?: { attendees_count?: number } };
-          const cnt = r.ok ? (j?.data?.attendees_count ?? 0) : e.attendees;
-          return { ...e, attendees: cnt };
-        } catch {
-          return e;
-        }
-      })
-    );
-  }, []);
+  }, [PAGE_SIZE, checkDelegationForChunk, hydrateWithCounts]);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -434,7 +435,15 @@ export default function Main() {
                 </header>
 
                 {e.imageUrl ? (
-                  <img src={e.imageUrl} alt={e.title} className="h-44 md:h-56 w-full object-cover" />
+                  <div className="relative h-44 md:h-56 w-full">
+                    <Image
+                      src={e.imageUrl}
+                      alt={e.title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
+                  </div>
                 ) : (
                   <div className={`h-44 md:h-56 ${e.bannerClass}`} />
                 )}
