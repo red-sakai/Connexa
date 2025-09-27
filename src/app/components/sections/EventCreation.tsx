@@ -33,12 +33,12 @@ export default function EventCreation() {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: fd,
     });
-    const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+    const json = (await res.json().catch(() => ({} as unknown))) as { error?: string; url?: string };
     if (!res.ok) {
-      const msg = json?.error || res.statusText || "Upload failed";
+      const msg = json.error || res.statusText || "Upload failed";
       throw new Error(msg);
     }
-    return typeof json?.url === "string" ? json.url : null;
+    return typeof json.url === "string" ? json.url : null;
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -89,7 +89,8 @@ export default function EventCreation() {
             return;
           }
         } catch (upErr: unknown) {
-          setError(`Image upload failed: ${upErr instanceof Error ? upErr.message : String(upErr)}`);
+          const message = upErr instanceof Error ? upErr.message : String(upErr);
+          setError(`Image upload failed: ${message}`);
           return;
         }
       }

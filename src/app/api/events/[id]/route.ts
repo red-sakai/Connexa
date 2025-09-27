@@ -40,7 +40,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
 
     const body = await req.json();
     const { title, description, event_at, host_name, location, image_url } = body || {};
-    const update: any = {};
+    const update: Record<string, unknown> = {};
     if (title) update.title = title;
     if (description !== undefined) update.description = description;
     if (event_at) update.event_at = event_at;

@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { supabase } from "../../../lib/supabase";
 import { signAuthToken } from "../../../lib/jwt";
 
+interface RegisterBody {
+  email: string;
+  password: string;
+  name?: string | null;
+  role?: string | null; // added
+}
+
 export async function POST(req: Request) {
   try {
     // Env guard to catch misconfiguration early
@@ -12,21 +19,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "SUPABASE_API_KEY is not set" }, { status: 500 });
     }
 
-    const { email, password, role } = await req.json();
-    if (typeof email !== "string" || !/\S+@\S+\.\S+/.test(email)) {
+    const data = (await req.json()) as Partial<RegisterBody>;
+    if (!data.email || !data.password) {
+      return Response.json({ error: "email and password required" }, { status: 400 });
+    }
+    const body: RegisterBody = {
+      email: data.email,
+      password: data.password,
+      name: data.name ?? null,
+      role: data.role ?? null, // added
+    };
+
+    if (typeof body.email !== "string" || !/\S+@\S+\.\S+/.test(body.email)) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
-    if (typeof password !== "string" || password.length < 8) {
+    if (typeof body.password !== "string" || body.password.length < 8) {
       return NextResponse.json({ error: "Password too short" }, { status: 400 });
     }
-    if (role && role !== "user" && role !== "admin") {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-    }
 
-    const { data, error } = await supabase.rpc("register_user", {
-      p_email: email,
-      p_password: password,
-      p_role: role ?? "user",
+    const { data: { user }, error } = await supabase.rpc("register_user", {
+      p_email: body.email,
+      p_password: body.password,
+      p_role: body.role ?? "user",
     });
 
     if (error) {
@@ -65,8 +79,9 @@ export async function POST(req: Request) {
       { user: { id: row.user_id, email: row.email, role: row.role }, token },
       { status: 201 }
     );
-  } catch (e: any) {
-    console.error("Register route error:", e);
-    return NextResponse.json({ error: "Bad Request" }, { status: 400 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal error";
+    console.error("Register route error:", err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -126,27 +126,37 @@ export default function Main() {
         "bg-gradient-to-br from-purple-200 to-pink-100",
         "bg-gradient-to-br from-emerald-200 to-teal-100",
       ];
-      const mapped: EventItem[] = (list as EventApi[]).map((ev, i) => {
-        const hostName = ev.host_name || "Organizer";
+      const mapped: EventItem[] = list.map((ev: unknown, i: number) => {
+        const e = ev as {
+          id: string;
+          title: string;
+          host_name?: string;
+          event_at?: string | null;
+          location?: string | null;
+          description?: string | null;
+          owner_id?: string;
+          image_url?: string | null;
+        };
+        const hostName = e.host_name || "Organizer";
         return {
-          id: ev.id,
-          title: ev.title,
+          id: e.id,
+          title: e.title,
           host: hostName,
           hostInitials: initialsFrom(hostName),
-          when: ev.event_at
-            ? new Date(ev.event_at).toLocaleString(undefined, {
+          when: e.event_at
+            ? new Date(e.event_at).toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
               })
             : "TBA",
-          where: ev.location || "TBA",
+          where: e.location || "TBA",
           attendees: 0, // will be hydrated per page
           liked: false,
-          description: ev.description ?? "",
+          description: e.description ?? "",
           bannerClass: palette[i % palette.length],
-          ownerId: ev.owner_id ?? undefined,
-          eventAtISO: ev.event_at ?? null,
-          imageUrl: ev.image_url ?? null,
+          ownerId: e.owner_id ?? undefined,
+          eventAtISO: e.event_at ?? null,
+          imageUrl: e.image_url ?? null,
         };
       });
 

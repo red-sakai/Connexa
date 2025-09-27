@@ -26,6 +26,11 @@ async function isDelegate(supa: SupabaseClient, email: string, eventId: string) 
   return Boolean(data?.id);
 }
 
+interface AdminAssignBody {
+  user_id: string;
+  role?: string; // e.g., 'editor'
+}
+
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
@@ -55,8 +60,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data }, { status: 200 });
-  } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: "Bad Request", details: String((e as Error)?.message || e) }, { status: 400 });
   }
 }
 
@@ -72,6 +77,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const allowed = user.role === "admin" || (await isOwner(supa, user.sub, id));
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+    const raw = (await req.json()) as Partial<AdminAssignBody>;
+    if (!raw.user_id) {
+      return Response.json({ error: "user_id required" }, { status: 400 });
+    }
+    const body: AdminAssignBody = { user_id: raw.user_id, role: raw.role };
+
     const { email } = await req.json();
     if (typeof email !== "string" || !/\S+@\S+\.\S+/.test(email)) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
@@ -85,8 +96,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data }, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Internal error";
+    return Response.json({ error: message }, { status: 500 });
   }
 }
 
@@ -102,6 +114,11 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
     const allowed = user.role === "admin" || (await isOwner(supa, user.sub, id));
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+    const raw = (await req.json().catch(() => ({}))) as { user_id?: string };
+    if (!raw.user_id) {
+      return Response.json({ error: "user_id required" }, { status: 400 });
+    }
+
     const url = new URL(req.url);
     const email = url.searchParams.get("email");
     if (!email) return NextResponse.json({ error: "email required" }, { status: 400 });
@@ -110,7 +127,8 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true }, { status: 204 });
-  } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Internal error";
+    return Response.json({ error: message }, { status: 500 });
   }
 }

@@ -47,8 +47,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data }, { status: 200 });
-  } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: "Bad Request", details: msg }, { status: 400 });
   }
 }
 
@@ -70,7 +71,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data }, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: "Bad Request", details: msg }, { status: 400 });
   }
 }
