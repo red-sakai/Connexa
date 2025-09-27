@@ -6,7 +6,7 @@ import Button from "../ui/Button";
 type TicketProps = { eventId: string };
 
 export default function Ticket({ eventId }: TicketProps) {
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<unknown>(null); // replaced any with unknown
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [first, setFirst] = useState("");
@@ -69,9 +69,21 @@ export default function Ticket({ eventId }: TicketProps) {
     }
   }
 
+  interface EventData {
+    title: string;
+    description?: string | null;
+    event_at?: string | null;
+    location?: string | null;
+    host_name?: string | null;
+  }
+  function isEventData(e: unknown): e is EventData {
+    return !!e && typeof e === "object" && "title" in e;
+  }
+
+  const evt = isEventData(event) ? event : null;
   const when =
-    event?.event_at
-      ? new Date(event.event_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    evt?.event_at
+      ? new Date(evt.event_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
       : "TBA";
 
   return (
@@ -87,15 +99,15 @@ export default function Ticket({ eventId }: TicketProps) {
           {loading && <p className="text-gray-600">Loading event…</p>}
           {err && !loading && <p className="text-red-600">{err}</p>}
 
-          {!loading && !err && event && (
+          {!loading && !err && evt && (
             <>
               <header className="mb-6">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{event.title}</h1>
-                <p className="text-gray-600 mt-1">{event.description || "No description provided."}</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{evt.title}</h1>
+                <p className="text-gray-600 mt-1">{evt.description || "No description provided."}</p>
                 <div className="mt-4 text-sm text-gray-700 space-y-1">
                   <p><span className="font-medium">When:</span> {when}</p>
-                  <p><span className="font-medium">Where:</span> {event.location || "TBA"}</p>
-                  <p><span className="font-medium">Host:</span> {event.host_name || "Organizer"}</p>
+                  <p><span className="font-medium">Where:</span> {evt.location || "TBA"}</p>
+                  <p><span className="font-medium">Host:</span> {evt.host_name || "Organizer"}</p>
                 </div>
               </header>
 
@@ -166,9 +178,9 @@ export default function Ticket({ eventId }: TicketProps) {
                 </form>
               ) : (
                 <div className="text-center">
-                  <h2 className="text-xl font-semibold text-gray-900">You're in!</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">You&apos;re in!</h2>
                   <p className="text-gray-600 mt-1">
-                    A confirmation will be sent to {email}. See you at {event.location || "the venue"}.
+                    A confirmation will be sent to {email}. See you at {evt.location || "the venue"}.
                   </p>
                   <div className="mt-6 flex gap-3 justify-center">
                     <Button href="/main" variant="outline">Back to feed</Button>

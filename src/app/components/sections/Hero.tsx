@@ -31,7 +31,7 @@ export default function Hero() {
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto animate-fade-in-up opacity-0 animation-delay-500">
             Connexa makes it easy to organize, manage, and grow your community events. 
-            From small meetups to large conferences, we've got you covered.
+            From small meetups to large conferences, we&apos;ve got you covered.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-in-up opacity-0 animation-delay-700">

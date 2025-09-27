@@ -43,8 +43,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     let supa: SupabaseClient;
     try {
       supa = getServerSupabase();
-    } catch (e: any) {
-      return NextResponse.json({ error: e?.message || "Supabase config error" }, { status: 500 });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Supabase config error";
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
 
     if (!(await canAccess(supa, user, id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -76,7 +77,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!url) return NextResponse.json({ error: "Failed to get public URL" }, { status: 500 });
 
     return NextResponse.json({ url }, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: "Bad Request", details: msg }, { status: 400 });
   }
 }

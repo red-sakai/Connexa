@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Button from "../ui/Button";
 
 type Props = { eventId: string };
@@ -26,7 +27,7 @@ export default function AdminPanel({ eventId }: Props) {
   const [savingAdmin, setSavingAdmin] = useState(false);
   const [adminErr, setAdminErr] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
@@ -52,14 +53,14 @@ export default function AdminPanel({ eventId }: Props) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [eventId]);
 
-  async function loadAdmins() {
+  const loadAdmins = useCallback(async () => {
     setAdminErr(null);
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       // Check if current user can manage (owner/admin)
-      const me = await fetch(`/api/events/${eventId}/admins?me=1`, {
+      const _me = await fetch(`/api/events/${eventId}/admins?me=1`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       }).then((r) => r.json()).catch(() => ({}));
       // canManage: only if owner/admin; me.allowed may be true for delegates too; we'll fetch list conditionally
@@ -78,7 +79,7 @@ export default function AdminPanel({ eventId }: Props) {
       setAdmins([]);
       setCanManage(false);
     }
-  }
+  }, [eventId]);
 
   async function addAdmin() {
     setSavingAdmin(true);
@@ -128,7 +129,7 @@ export default function AdminPanel({ eventId }: Props) {
   useEffect(() => {
     load();
     loadAdmins();
-  }, [eventId]);
+  }, [load, loadAdmins]);
 
   return (
     <section className="min-h-screen bg-gray-50 px-6 pt-24 pb-16">
