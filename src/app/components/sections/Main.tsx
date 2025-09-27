@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Button from "../ui/Button";
 import { useRouter } from "next/navigation";
 import {
@@ -11,6 +11,7 @@ import {
   FiClock,
   FiUsers,
 } from "react-icons/fi";
+import Image from "next/image";
 
 type EventItem = {
   id: string;
@@ -23,24 +24,31 @@ type EventItem = {
   liked: boolean;
   description: string;
   bannerClass: string;
-  ownerId?: string;        // added
-  eventAtISO?: string | null; // added
-  imageUrl?: string | null; // added
+  ownerId?: string;
+  eventAtISO?: string | null;
+  imageUrl?: string | null;
 };
 
-// Replace placeholders with an empty default
-const initialEvents: EventItem[] = [];
+type EventApi = {
+  id: string;
+  title: string;
+  host_name?: string | null;
+  event_at?: string | null;
+  location?: string | null;
+  description?: string | null;
+  owner_id?: string | null;
+  image_url?: string | null;
+};
 
 export default function Main() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userSub, setUserSub] = useState<string | null>(null);   // added
-  const [userRole, setUserRole] = useState<string | null>(null); // added
+  const [userSub, setUserSub] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
-  const PAGE_SIZE = 4;
-  // Delegation: event ids the current user can manage (delegated)
   const [delegateSet, setDelegateSet] = useState<Set<string>>(new Set());
+  const PAGE_SIZE = 4;
   const router = useRouter();
 
   // Decode JWT payload locally to extract sub/email/role
@@ -49,7 +57,7 @@ export default function Main() {
       const base64 = token.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/");
       if (!base64) return null;
       const payload = JSON.parse(atob(base64));
-      return payload?.[field] ?? null;
+      return (payload?.[field] ?? null) as T | null;
     } catch {
       return null;
     }
@@ -79,15 +87,31 @@ export default function Main() {
     const entries = await Promise.all(
       chunk.map(async (e) => ({ id: e.id, allowed: await isDelegatedFor(e.id) }))
     );
-    setDelegateSet((prev) => {
+    setDelegateSet((prev: Set<string>) => {
       const copy = new Set(prev);
       for (const { id, allowed } of entries) if (allowed) copy.add(id);
       return copy;
     });
   }
 
+  // Add: hydrate a chunk with attendees_count (moved above fetchEvents)
+  const hydrateWithCounts = useCallback(async (chunk: EventItem[]): Promise<EventItem[]> => {
+    return Promise.all(
+      chunk.map(async (e) => {
+        try {
+          const r = await fetch(`/api/events/${e.id}`, { cache: "no-store" });
+          const j = (await r.json().catch(() => ({}))) as { data?: { attendees_count?: number } };
+          const cnt = r.ok ? (j?.data?.attendees_count ?? 0) : e.attendees;
+          return { ...e, attendees: cnt };
+        } catch {
+          return e;
+        }
+      })
+    );
+  }, []);
+
   // Helper: fetch events list, hydrate first PAGE_SIZE, and check delegation for visible ones
-  async function fetchEvents() {
+  const fetchEvents = useCallback(async () => {
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const res = await fetch(`/api/events?ts=${Date.now()}`, {
@@ -146,23 +170,7 @@ export default function Main() {
     } catch {
       // ignore
     }
-  }
-
-  // Add: hydrate a chunk with attendees_count
-  async function hydrateWithCounts(chunk: EventItem[]): Promise<EventItem[]> {
-    return Promise.all(
-      chunk.map(async (e) => {
-        try {
-          const r = await fetch(`/api/events/${e.id}`, { cache: "no-store" });
-          const j = await r.json().catch(() => ({}));
-          const cnt = r.ok ? (j?.data?.attendees_count ?? 0) : e.attendees;
-          return { ...e, attendees: cnt };
-        } catch {
-          return e;
-        }
-      })
-    );
-  }
+  }, [PAGE_SIZE, checkDelegationForChunk, hydrateWithCounts]);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -179,7 +187,7 @@ export default function Main() {
   // Initial feed load
   useEffect(() => {
     fetchEvents();
-  }, []);
+  }, [fetchEvents]);
 
   const userInitial = userEmail?.[0]?.toUpperCase() || "U";
 
@@ -437,7 +445,15 @@ export default function Main() {
                 </header>
 
                 {e.imageUrl ? (
-                  <img src={e.imageUrl} alt={e.title} className="h-44 md:h-56 w-full object-cover" />
+                  <div className="relative h-44 md:h-56 w-full">
+                    <Image
+                      src={e.imageUrl}
+                      alt={e.title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
+                  </div>
                 ) : (
                   <div className={`h-44 md:h-56 ${e.bannerClass}`} />
                 )}

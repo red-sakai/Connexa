@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../ui/Button";
+import Image from "next/image";
 
 export default function EventCreation() {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function EventCreation() {
         },
         body: JSON.stringify({ title, description, event_at, host_name: hostName || null, location: location || null }),
       });
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as { data?: { id?: string }; error?: string };
       if (!res.ok) {
         setError(body?.error || "Failed to create event");
         return;
@@ -78,9 +79,8 @@ export default function EventCreation() {
               },
               body: JSON.stringify({ image_url: imageUrl }),
             });
-            const putJson = await putRes.json().catch(() => ({}));
+            const putJson = (await putRes.json().catch(() => ({}))) as { error?: string };
             if (!putRes.ok) {
-              // Most common cause: column "image_url" does not exist
               setError(putJson?.error || "Failed to attach image to event. Ensure 'image_url' column exists.");
               return;
             }
@@ -212,7 +212,13 @@ export default function EventCreation() {
               />
               {imagePreview && (
                 <div className="mt-3 rounded-lg overflow-hidden border border-gray-200">
-                  <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover" />
+                  <Image
+                    src={imagePreview}
+                    alt="Event banner preview"
+                    width={1200}
+                    height={600}
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
                 </div>
               )}
             </div>
