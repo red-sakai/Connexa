@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase";
 import { signAuthToken } from "../../../lib/jwt";
 
 // Standard response helper
-function respond(status: number, payload: any) {
+function respond(status: number, payload: unknown) {
   return NextResponse.json(payload, { status });
 }
 
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     }
 
     // Input validation
-    let body: any;
+    let body: unknown;
     try {
       body = await req.json();
     } catch {
@@ -43,10 +43,22 @@ export async function POST(req: Request) {
       });
     }
 
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    const password = body.password;
+    if (typeof body !== "object" || body === null) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid JSON body structure" },
+      });
+    }
 
-    if (!/\S+@\S+\.\S+/.test(email) || typeof password !== "string" || password.length < 8) {
+    const bodyObj = body as Record<string, unknown>;
+    const rawEmail = bodyObj.email;
+    const rawPassword = bodyObj.password;
+
+    const email =
+      typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+    const password = typeof rawPassword === "string" ? rawPassword : "";
+
+    if (!/\S+@\S+\.\S+/.test(email) || password.length < 8) {
       return respond(400, {
         success: false,
         error: { code: "VALIDATION_ERROR", message: "Invalid email or password format" },

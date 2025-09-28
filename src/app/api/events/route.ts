@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { verifyAuthToken } from "../../lib/jwt";
 
 // Unified response helper
-function respond(status: number, payload: any) {
+function respond(status: number, payload: unknown) {
   return NextResponse.json(payload, { status });
 }
 
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       });
     }
 
-    let raw: any;
+    let raw: unknown;
     try {
       raw = await req.json();
     } catch {
@@ -86,8 +86,16 @@ export async function POST(req: Request) {
       });
     }
 
+    if (typeof raw !== "object" || raw === null) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid JSON body structure" },
+      });
+    }
+    const obj = raw as Record<string, unknown>;
+
     // ...existing validation logic...
-    const title = typeof raw.title === "string" ? raw.title.trim() : "";
+    const title = typeof obj.title === "string" ? obj.title.trim() : "";
     if (!title) {
       return respond(400, {
         success: false,
@@ -101,8 +109,8 @@ export async function POST(req: Request) {
       });
     }
     const description =
-      raw.description === null || typeof raw.description === "string"
-        ? raw.description
+      obj.description === null || typeof obj.description === "string"
+        ? obj.description
         : undefined;
     if (typeof description === "string" && description.length > 5000) {
       return respond(400, {
@@ -111,8 +119,8 @@ export async function POST(req: Request) {
       });
     }
     const event_at =
-      raw.event_at === null || typeof raw.event_at === "string"
-        ? raw.event_at
+      obj.event_at === null || typeof obj.event_at === "string"
+        ? obj.event_at
         : undefined;
     if (event_at) {
       const dt = new Date(event_at);
@@ -124,16 +132,16 @@ export async function POST(req: Request) {
       }
     }
     const location =
-      raw.location === null || typeof raw.location === "string"
-        ? raw.location
+      obj.location === null || typeof obj.location === "string"
+        ? obj.location
         : undefined;
     const host_name =
-      raw.host_name === null || typeof raw.host_name === "string"
-        ? raw.host_name
+      obj.host_name === null || typeof obj.host_name === "string"
+        ? obj.host_name
         : undefined;
     const image_url =
-      raw.image_url === null || typeof raw.image_url === "string"
-        ? raw.image_url
+      obj.image_url === null || typeof obj.image_url === "string"
+        ? obj.image_url
         : undefined;
 
     const insert: Record<string, unknown> = {

@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase";
 import { signAuthToken } from "../../../lib/jwt";
 
 // Standard response helper (mirrors login route style)
-function respond(status: number, payload: any) {
+function respond(status: number, payload: unknown) {
   return NextResponse.json(payload, { status });
 }
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     }
 
     // Parse body
-    let requestBody: any;
+    let requestBody: unknown;
     try {
       requestBody = await req.json();
     } catch {
@@ -41,16 +41,26 @@ export async function POST(req: Request) {
       });
     }
 
+    if (typeof requestBody !== "object" || requestBody === null) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid JSON body structure" },
+      });
+    }
+
+    const bodyObj = requestBody as Record<string, unknown>;
+
     const rawEmail =
-      typeof requestBody.email === "string"
-        ? requestBody.email.trim().toLowerCase()
+      typeof bodyObj.email === "string"
+        ? bodyObj.email.trim().toLowerCase()
         : "";
-    const password = requestBody.password;
+    const password =
+      typeof bodyObj.password === "string" ? bodyObj.password : "";
     const name =
-      typeof requestBody.name === "string" ? requestBody.name.trim() : null;
+      typeof bodyObj.name === "string" ? bodyObj.name.trim() : null;
     let role =
-      typeof requestBody.role === "string"
-        ? requestBody.role.trim().toLowerCase()
+      typeof bodyObj.role === "string"
+        ? bodyObj.role.trim().toLowerCase()
         : "user";
 
     // Optional: constrain roles

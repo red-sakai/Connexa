@@ -5,7 +5,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 
 // Consistent response helper
-function respond(status: number, payload: any) {
+function respond(status: number, payload: unknown) {
   return NextResponse.json(payload, { status });
 }
 
@@ -126,15 +126,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       });
     }
 
-    let body: Partial<AdminAssignBody>;
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return respond(400, {
         success: false,
         error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" },
       });
     }
+    if (typeof rawBody !== "object" || rawBody === null) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid JSON body structure" },
+      });
+    }
+    const body = rawBody as Partial<AdminAssignBody>;
 
     if (!body.email || typeof body.email !== "string" || !/\S+@\S+\.\S+/.test(body.email)) {
       return respond(400, {

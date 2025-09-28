@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase";
 import { verifyAuthToken } from "../../../lib/jwt";
 
 // Unified response helper
-function respond(status: number, payload: any) {
+function respond(status: number, payload: unknown) {
   return NextResponse.json(payload, { status });
 }
 
@@ -74,7 +74,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
       });
     }
 
-    let body: any;
+    let body: unknown;
     try {
       body = await req.json();
     } catch {
@@ -84,14 +84,21 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
       });
     }
 
-    const {
-      title,
-      description,
-      event_at,
-      host_name,
-      location,
-      image_url,
-    } = body || {};
+    if (typeof body !== "object" || body === null) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid JSON body structure" },
+      });
+    }
+
+    const obj = body as Record<string, unknown>;
+
+    const title = typeof obj.title === "string" ? obj.title : undefined;
+    const description = obj.description;
+    const event_at = obj.event_at;
+    const host_name = obj.host_name;
+    const location = obj.location;
+    const image_url = obj.image_url;
 
     const update: Record<string, unknown> = {};
 
@@ -105,6 +112,12 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
         });
     }
     if (event_at) {
+      if (typeof event_at !== "string") {
+        return respond(400, {
+          success: false,
+          error: { code: "VALIDATION_ERROR", message: "Invalid event_at datetime" },
+        });
+      }
       const dt = new Date(event_at);
       if (isNaN(dt.getTime()))
         return respond(400, {

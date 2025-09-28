@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { verifyAuthToken } from "../../../../lib/jwt";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
@@ -6,7 +5,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 
 // Consistent response helper
-function respond(status: number, payload: any) {
+function respond(status: number, payload: unknown) {
   return NextResponse.json(payload, { status });
 }
 
@@ -62,15 +61,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     let supa: SupabaseClient;
     try {
       supa = getServerSupabase();
-    } catch (e: any) {
-      const msg = String(e?.message || "");
+    } catch (e: unknown) {
+      const rawMsg = e instanceof Error ? e.message : "";
+      const msg = String(rawMsg || "");
       if (msg.startsWith("ENV_MISSING")) {
         return respond(500, {
           success: false,
-            error: {
-              code: "ENV_MISSING",
-              message: msg.replace("ENV_MISSING:", "") + " is not set",
-            },
+          error: {
+            code: "ENV_MISSING",
+            message: msg.replace("ENV_MISSING:", "") + " is not set",
+          },
         });
       }
       return respond(500, {
