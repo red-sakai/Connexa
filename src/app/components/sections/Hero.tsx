@@ -38,9 +38,6 @@ export default function Hero() {
             <Button href="/signin">
               Start Planning Events
             </Button>
-            <Button variant="outline">
-              Watch Demo
-            </Button>
           </div>
         </div>
       </div>

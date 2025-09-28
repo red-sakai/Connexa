@@ -42,69 +42,32 @@ Connexa is a community event platform for creating, publishing, and managing eve
 - A Supabase project
 
 2) Clone and install
+``` bash
 - git clone <repo>
 - cd connexa
 - pnpm install
   - or npm install
+```
 
 3) Environment variables (.env)
-Add these to d:\Connexa\connexa\.env (server-only keys never exposed to client):
+```
 - SUPABASE_URL=your-supabase-url
 - SUPABASE_API_KEY=your-supabase-anon-key
 - SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-- JWT_SECRET=your-strong-secret
+- JWT_SECRET=batang90slangnakakaalam
+```
 
 Notes:
 - SUPABASE_SERVICE_ROLE_KEY must never be used in client code; the upload/admin APIs use it on the server.
 - After editing .env, restart the dev server.
 
-4) Database setup (Supabase SQL)
-Run the schema used by this repo in the Supabase SQL editor:
-
-Core auth/events (if not already provisioned in your project)
-- Create users/auth tables and functions as you prefer (this repo expects a verify_login RPC). See supabase/auth.sql in your local workflow if applicable.
-
-Attendees (RSVPs)
-- create table if not exists public.attendees (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references public.events(id) on delete cascade,
-  first_name text not null,
-  last_name text not null,
-  email text not null,
-  contact text not null,
-  created_at timestamptz default now()
-);
-- alter table public.attendees enable row level security;
-- create policy if not exists attendees_insert_public on public.attendees for insert to public with check (true);
-
-Delegated Admins
-- create table if not exists public.event_admins (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references public.events(id) on delete cascade,
-  email text not null,
-  created_at timestamptz default now(),
-  unique (event_id, email)
-);
-- alter table public.event_admins enable row level security;
-- create policy if not exists event_admins_select_public on public.event_admins for select to public using (true);
-- create policy if not exists event_admins_insert_public on public.event_admins for insert to public with check (true);
-- create policy if not exists event_admins_delete_public on public.event_admins for delete to public using (true);
-
-Events table columns (if missing)
-- alter table public.events add column if not exists host_name text;
-- alter table public.events add column if not exists location text;
-- alter table public.events add column if not exists image_url text;
-
-5) Storage setup (Supabase Storage)
-- Create a bucket named event-images
-- Make it public (read). If you keep RLS on, server upload uses service-role to bypass RLS.
-- In Settings > API, copy your Service Role key into SUPABASE_SERVICE_ROLE_KEY in .env
-
-6) Run the app
+4) Run the app
+``` bash
 - pnpm dev
   - or npm run dev
 - Open http://localhost:3000
 - Sign up / sign in, then go to /main
+```
 
 ## Usage Highlights
 
@@ -143,19 +106,9 @@ Delegated Admins
 Authorization
 - Include Authorization: Bearer <token> for protected endpoints.
 
-## API Documentation (OpenAPI/Swagger)
+## API Documentation (Google Docs)
 
-Planned addition. Suggested next steps:
-- Define OpenAPI spec (openapi.json) for the endpoints above.
-- Add a route to serve Swagger UI at /api-docs that loads /openapi.json.
-- Tools: swagger-ui-react, Redoc, or next-swagger-doc.
-
-Quick start (to add soon):
-- Install swagger-ui-react and create a page at src/app/api-docs/page.tsx that renders the UI pointing to /openapi.json
-- Place your OpenAPI JSON at the project root as openapi.json or serve it from /api/openapi
-
-Once added, link it here:
-- API Docs: http://localhost:3000/api-docs
+- API Docs: https://docs.google.com/document/d/1Uu1q-nudvIg4AILp83KUZfF01CQIxcz3fvq_C4pNO1k/edit?usp=sharing
 
 ## Development Notes
 
@@ -181,7 +134,3 @@ Once added, link it here:
 - pnpm dev / npm run dev
 - pnpm build / npm run build
 - pnpm start / npm start
-
-## License
-
-MIT (add your preferred license)

@@ -2,23 +2,58 @@ import { NextResponse } from "next/server";
 import { supabase } from "../../../lib/supabase";
 import { signAuthToken } from "../../../lib/jwt";
 
+// Standard response helper
+function respond(status: number, payload: any) {
+  return NextResponse.json(payload, { status });
+}
+
 export async function POST(req: Request) {
   try {
-    if (!process.env.SUPABASE_URL && !process.env.SUPBASE_URL) {
-      return NextResponse.json({ error: "SUPABASE_URL is not set" }, { status: 500 });
+    // Optional basic content-type check
+    const ctype = req.headers.get("content-type") || "";
+    if (!ctype.toLowerCase().includes("application/json")) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Content-Type must be application/json" },
+      });
+    }
+
+    // Env validation
+    if (!process.env.SUPABASE_URL) {
+      return respond(500, {
+        success: false,
+        error: { code: "ENV_MISSING", message: "SUPABASE_URL is not set" },
+      });
     }
     if (!process.env.SUPABASE_API_KEY) {
-      return NextResponse.json({ error: "SUPABASE_API_KEY is not set" }, { status: 500 });
+      return respond(500, {
+        success: false,
+        error: { code: "ENV_MISSING", message: "SUPABASE_API_KEY is not set" },
+      });
     }
 
-    const { email, password } = await req.json();
-    if (typeof email !== "string" || !/\S+@\S+\.\S+/.test(email)) {
-      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
-    }
-    if (typeof password !== "string" || password.length < 8) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 400 });
+    // Input validation
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" },
+      });
     }
 
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = body.password;
+
+    if (!/\S+@\S+\.\S+/.test(email) || typeof password !== "string" || password.length < 8) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid email or password format" },
+      });
+    }
+
+    // Auth attempt
     const { data, error } = await supabase.rpc("verify_login", {
       p_email: email,
       p_password: password,
@@ -27,20 +62,37 @@ export async function POST(req: Request) {
     if (error) {
       console.error("verify_login RPC error:", error);
       const msg = (error.message || "").toLowerCase();
-      let clientMsg = `Invalid credentials`;
-      if (msg.includes("ambiguous") && msg.includes("email")) {
-        clientMsg =
-          "Login failed: database function error (ambiguous 'email'). Qualify columns in SQL (use uc.email) and recreate functions.";
-      } else if (msg.includes("crypt") || msg.includes("gen_salt")) {
-        clientMsg =
-          "Login failed: pgcrypto functions not found. Ensure search_path includes extensions or reinstall pgcrypto.";
+
+      const isInternal =
+        msg.includes("ambiguous") ||
+        msg.includes("crypt") ||
+        msg.includes("gen_salt") ||
+        msg.includes("syntax") ||
+        msg.includes("permission");
+
+      if (isInternal) {
+        return respond(500, {
+          success: false,
+          error: {
+            code: "RPC_ERROR",
+            message: "Authentication service error",
+            details: process.env.NODE_ENV === "development" ? error.message : undefined,
+          },
+        });
       }
-      return NextResponse.json({ error: clientMsg, details: error.message }, { status: 401 });
+
+      return respond(401, {
+        success: false,
+        error: { code: "AUTH_FAILED", message: "Invalid credentials" },
+      });
     }
 
     const row = Array.isArray(data) ? data[0] : data;
     if (!row?.user_id) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return respond(401, {
+        success: false,
+        error: { code: "AUTH_FAILED", message: "Invalid credentials" },
+      });
     }
 
     const token = await signAuthToken({
@@ -49,12 +101,18 @@ export async function POST(req: Request) {
       role: row.role,
     });
 
-    return NextResponse.json(
-      { user: { id: row.user_id, email: row.email, role: row.role }, token },
-      { status: 200 }
-    );
+    return respond(200, {
+      success: true,
+      data: {
+        user: { id: row.user_id, email: row.email, role: row.role },
+        token,
+      },
+    });
   } catch (e) {
     console.error("Login route error:", e);
-    return NextResponse.json({ error: "Bad Request" }, { status: 400 });
+    return respond(500, {
+      success: false,
+      error: { code: "SERVER_ERROR", message: "Internal server error" },
+    });
   }
 }

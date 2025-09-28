@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { supabase } from "../../lib/supabase";
 import { verifyAuthToken } from "../../lib/jwt";
 
+// Unified response helper
+function respond(status: number, payload: any) {
+  return NextResponse.json(payload, { status });
+}
+
 function getBearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
   const [, token] = auth.split(" ");
@@ -18,44 +23,155 @@ interface CreateEventBody {
 }
 
 export async function GET() {
-  const { data, error } = await supabase.from("events").select("*").order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data }, { status: 200 });
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return respond(500, {
+        success: false,
+        error: { code: "DB_ERROR", message: "Failed to fetch events" },
+      });
+    }
+
+    // Backward compatibility:
+    // Previously: { data: [...] }
+    // Now also keeps success envelope while preserving original 'data' array shape.
+    return respond(200, {
+      success: true,
+      // legacy shape (array)
+      data,
+      // new structured namespace
+      events: data,
+      meta: { count: data?.length ?? 0 },
+    });
+  } catch (e) {
+    console.error("Events GET error:", e);
+    return respond(500, {
+      success: false,
+      error: { code: "SERVER_ERROR", message: "Internal server error" },
+    });
+  }
 }
 
 export async function POST(req: Request) {
   try {
     const token = getBearer(req);
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const user = await verifyAuthToken(token);
-
-    const raw = (await req.json()) as Partial<CreateEventBody>;
-    if (!raw.title) {
-      return Response.json({ error: "title required" }, { status: 400 });
+    if (!token) {
+      return respond(401, {
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Missing bearer token" },
+      });
     }
-    const body: CreateEventBody = {
-      title: raw.title,
-      description: raw.description ?? null,
-      event_at: raw.event_at ?? null,
-      location: raw.location ?? null,
-      host_name: raw.host_name ?? null,
-      image_url: raw.image_url ?? null,
-    };
+
+    let user;
+    try {
+      user = await verifyAuthToken(token);
+    } catch {
+      return respond(401, {
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Invalid token" },
+      });
+    }
+
+    let raw: any;
+    try {
+      raw = await req.json();
+    } catch {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" },
+      });
+    }
+
+    // ...existing validation logic...
+    const title = typeof raw.title === "string" ? raw.title.trim() : "";
+    if (!title) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Title is required" },
+      });
+    }
+    if (title.length > 200) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Title too long" },
+      });
+    }
+    const description =
+      raw.description === null || typeof raw.description === "string"
+        ? raw.description
+        : undefined;
+    if (typeof description === "string" && description.length > 5000) {
+      return respond(400, {
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Description too long" },
+      });
+    }
+    const event_at =
+      raw.event_at === null || typeof raw.event_at === "string"
+        ? raw.event_at
+        : undefined;
+    if (event_at) {
+      const dt = new Date(event_at);
+      if (isNaN(dt.getTime())) {
+        return respond(400, {
+          success: false,
+          error: { code: "VALIDATION_ERROR", message: "Invalid event_at datetime" },
+        });
+      }
+    }
+    const location =
+      raw.location === null || typeof raw.location === "string"
+        ? raw.location
+        : undefined;
+    const host_name =
+      raw.host_name === null || typeof raw.host_name === "string"
+        ? raw.host_name
+        : undefined;
+    const image_url =
+      raw.image_url === null || typeof raw.image_url === "string"
+        ? raw.image_url
+        : undefined;
 
     const insert: Record<string, unknown> = {
-      title: body.title,
-      description: body.description ?? null,
-      event_at: body.event_at ?? null,
+      title,
+      description: description ?? null,
+      event_at: event_at ?? null,
       owner_id: user.sub,
-      ...(body.host_name !== undefined && { host_name: body.host_name }),
-      ...(body.location !== undefined && { location: body.location }),
+      host_name: host_name ?? null,
+      location: location ?? null,
+      image_url: image_url ?? null,
     };
 
-    const { data, error } = await supabase.from("events").insert([insert]).select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data }, { status: 201 });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Internal error";
-    return Response.json({ error: message }, { status: 500 });
+    const { data, error } = await supabase
+      .from("events")
+      .insert([insert])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Events POST DB error:", error);
+      return respond(500, {
+        success: false,
+        error: { code: "DB_ERROR", message: "Failed to create event" },
+      });
+    }
+
+    return respond(201, {
+      success: true,
+      // legacy shape (single event object)
+      data,
+      // structured new shape
+      event: data,
+    });
+  } catch (e) {
+    console.error("Events POST error:", e);
+    return respond(500, {
+      success: false,
+      error: { code: "SERVER_ERROR", message: "Internal server error" },
+    });
   }
 }
