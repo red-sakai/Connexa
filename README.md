@@ -14,25 +14,33 @@ Connexa is a community event platform for creating, publishing, and managing eve
 ## Architecture Overview
 
 - UI (Next.js App Router): pages and client components under src/app
+``` bash
   - /main is the authenticated feed
   - /eventcreation is the event composer
   - /tickets/[id] is the ticket availing/RSVP page
   - /events/[id]/admin is the owner admin panel
+```
 - API (Next.js Route Handlers) under src/app/api
+``` bash
   - Auth: /api/auth/login, /api/auth/register (RPC-based)
   - Events: /api/events, /api/events/[id]
   - Uploads: /api/uploads/events/[id] for banner image uploads to Supabase Storage
   - Attendees: /api/events/[id]/attendees (RSVP create/list)
   - Delegated Admins: /api/events/[id]/admins (owner can grant access by email)
+```
 - Data (Supabase/Postgres)
+``` bash
   - public.events: event records with owner_id, host_name, location, event_at, image_url
   - public.attendees: RSVPs per event
   - public.event_admins: delegated admin emails per event
   - Storage bucket event-images for banners
+```
 - Security
+``` bash
   - JWT issued at login, verified in API routes
   - RLS on tables; server uses service-role key for storage and admin operations
   - Owner/admin checks for sensitive endpoints
+```
 
 ## Getting Started
 

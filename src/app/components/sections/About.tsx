@@ -56,11 +56,18 @@ export default function About() {
             <li>RESTful endpoints with validation and consistent responses</li>
           </ul>
 
-          <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-2">What’s next</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-2">API Documentation</h3>
           <ul className="list-disc list-inside text-gray-700 space-y-1">
-            <li>Paid ticketing and payments</li>
-            <li>Deeper analytics and exports</li>
-            <li>Team collaboration workflows</li>
+            <li>
+              <a
+                href="https://docs.google.com/document/d/1Uu1q-nudvIg4AILp83KUZfF01CQIxcz3fvq_C4pNO1k/edit?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 underline hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-sm break-all"
+              >
+                API Documentation (Google Doc)
+              </a>
+            </li>
           </ul>
         </div>
       </div>
