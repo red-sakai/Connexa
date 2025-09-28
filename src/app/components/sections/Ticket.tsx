@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import Button from "../ui/Button";
 
 type TicketProps = { eventId: string };
+type EventData = {
+  id?: string;
+  title?: string;
+  description?: string | null;
+  event_at?: string | null;
+  location?: string | null;
+  host_name?: string | null;
+  image_url?: string | null;
+};
 
 export default function Ticket({ eventId }: TicketProps) {
   const [event, setEvent] = useState<unknown>(null); // replaced any with unknown
@@ -22,11 +31,11 @@ export default function Ticket({ eventId }: TicketProps) {
     (async () => {
       try {
         const res = await fetch(`/api/events/${eventId}`);
-        const body = await res.json().catch(() => ({}));
+        const body = (await res.json().catch(() => ({}))) as { data?: EventData; error?: string };
         if (!res.ok) {
           if (mounted) setErr(body?.error || "Event not found");
         } else if (mounted) {
-          setEvent(body.data);
+          setEvent(body.data ?? null);
         }
       } catch {
         if (mounted) setErr("Failed to load event");
