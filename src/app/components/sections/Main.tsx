@@ -444,7 +444,7 @@ export default function Main() {
                   </div>
                 </header>
 
-                {e.imageUrl ? (
+                {typeof e.imageUrl === "string" && e.imageUrl.length > 0 ? (
                   <div className="relative h-44 md:h-56 w-full">
                     <Image
                       src={e.imageUrl}
