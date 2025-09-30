@@ -97,9 +97,6 @@ export default function SignIn() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
-              <Link href="#" className="text-sm text-indigo-600 hover:text-indigo-700">
-                Forgot password?
-              </Link>
             </div>
             <div className="relative">
               <input
