@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../ui/Button";
 import Image from "next/image";
@@ -17,6 +17,26 @@ export default function EventCreation() {
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  // Hydrate token after mount
+  useEffect(() => {
+    const t =
+      (typeof window !== "undefined" && (localStorage.getItem("token") || sessionStorage.getItem("token"))) ||
+      getTokenFromCookies();
+    setAuthToken(t && t.trim() ? t.trim() : null);
+  }, []);
+
+  function getTokenFromCookies(): string | null {
+    if (typeof document === "undefined") return null;
+    const match = document.cookie
+      .split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith("token="));
+    if (!match) return null;
+    const val = decodeURIComponent(match.split("=")[1] || "");
+    return val || null;
+  }
 
   function buildEventAt() {
     if (!whenDate) return null;
@@ -66,19 +86,25 @@ export default function EventCreation() {
     return String(err);
   }
 
-  function getToken() {
-    return typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  function rehydrateToken(): string | null {
+    const t =
+      authToken ||
+      (typeof window !== "undefined" &&
+        (localStorage.getItem("token") || sessionStorage.getItem("token"))) ||
+      getTokenFromCookies();
+    const cleaned = t && t.trim() ? t.trim() : null;
+    if (cleaned !== authToken) setAuthToken(cleaned);
+    return cleaned;
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    const token = getToken();
+    const token = rehydrateToken();
+    // Only block if after rehydrate still no token
     if (!token) {
-      setError("Please sign in to create an event.");
-      // optional redirect; comment out if you prefer to keep user on form
-      // router.push("/");
+      setError("Authentication required. Please sign in again.");
       return;
     }
 
@@ -112,7 +138,6 @@ export default function EventCreation() {
       if (!res.ok) {
         if (res.status === 401) {
           setError("Session expired or unauthorized. Please log in again.");
-          // router.push("/"); // uncomment if you want auto-redirect
           return;
         }
         setError(normalizeError(body?.error) || "Failed to create event");
