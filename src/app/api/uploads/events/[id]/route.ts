@@ -41,27 +41,16 @@ async function isDelegate(supa: SupabaseClient, email: string | undefined, event
   return Boolean(data?.id);
 }
 
-async function canAccess(
-  supa: SupabaseClient,
-  user: { sub: string; role: string; email?: string },
-  eventId: string
-) {
-  if (user.role === "admin") return true;
-  if (await isOwner(supa, user.sub, eventId)) return true;
-  if (await isDelegate(supa, user.email, eventId)) return true;
-  return false;
-}
-
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
 
-    // AuthN + AuthZ
+    // AuthN
     const token = getBearer(req);
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const user = await verifyAuthToken(token);
 
-    // Supabase service client (bypasses storage RLS)
+    // Supabase client
     let supa: SupabaseClient;
     try {
       supa = getServerSupabase();
@@ -69,9 +58,41 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: e?.message || "Supabase config error" }, { status: 500 });
     }
 
-    if (!(await canAccess(supa, user as any, id))) {
+    // Fetch event (to allow claiming ownership if unassigned)
+    const { data: eventRow, error: eventErr } = await supa
+      .from("events")
+      .select("id, owner_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (eventErr) {
+      return NextResponse.json({ error: "Failed to load event", details: eventErr.message }, { status: 500 });
+    }
+    if (!eventRow) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // If event has no owner yet, claim it (first authenticated actor becomes owner)
+    if (!eventRow.owner_id) {
+      await supa
+        .from("events")
+        .update({ owner_id: user.sub })
+        .eq("id", id)
+        .is("owner_id", null);
+    }
+
+    // Authorization after possible ownership claim
+    const allowed =
+      user.role === "admin" ||
+      (await isOwner(supa, user.sub, id)) ||
+      (await isDelegate(supa, (user as any).email, id));
+
+    if (!allowed) {
       return NextResponse.json(
-        { error: "Forbidden", reason: "You are not owner, admin, or delegate for this event." },
+        {
+          error: "Forbidden",
+          reason: "You are not the event creator (or newly claimed owner), admin, or delegate.",
+        },
         { status: 403 }
       );
     }
