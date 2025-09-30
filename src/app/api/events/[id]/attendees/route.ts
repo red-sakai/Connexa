@@ -11,10 +11,33 @@ function getBearer(req: Request) {
   return token;
 }
 
+function sanitizeEnvValue(raw?: string) {
+  if (!raw) return raw;
+  // Take only the first whitespace-delimited token (guards against "KEY OTHER_KEY=...").
+  const first = raw.trim().split(/\s+/)[0];
+  return first;
+}
+
 function getServerSupabase(): SupabaseClient {
-  const url = process.env.SUPABASE_URL!;
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_API_KEY;
-  if (!url || !service) throw new Error("Supabase env not configured");
+  const rawUrl = process.env.SUPABASE_URL;
+  const rawService =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_API_KEY;
+
+  const url = sanitizeEnvValue(rawUrl);
+  const service = sanitizeEnvValue(rawService);
+
+  if (!url || !service) {
+    throw new Error("Supabase env not configured");
+  }
+
+  // Detect likely misformatted .env (multiple assignments on one line)
+  if (/\bJWT_SECRET=/.test(String(rawService))) {
+    console.warn(
+      "[env warning] SUPABASE_SERVICE_ROLE_KEY appears to include another assignment (e.g. 'JWT_SECRET='). " +
+        "Check your .env file: each VAR=VALUE must be on its own line."
+    );
+  }
+
   return createClient(url, service);
 }
 
@@ -49,7 +72,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data }, { status: 200 });
   } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: "Bad Request",
+        details: String(e?.message || e),
+        hint:
+          /env not configured/i.test(String(e?.message || e))
+            ? "Check .env formatting (each VAR=VALUE on its own line)."
+            : undefined,
+      },
+      { status: 400 }
+    );
   }
 }
 
@@ -72,6 +105,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data }, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: "Bad Request",
+        details: String(e?.message || e),
+        hint:
+          /env not configured/i.test(String(e?.message || e))
+            ? "Check .env formatting (each VAR=VALUE on its own line)."
+            : undefined,
+      },
+      { status: 400 }
+    );
   }
 }
