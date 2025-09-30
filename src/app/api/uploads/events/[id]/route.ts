@@ -25,10 +25,31 @@ function getServerSupabase(): SupabaseClient {
   return createClient(url, service || (anon as string));
 }
 
-async function canAccess(supa: SupabaseClient, user: { sub: string; role: string }, eventId: string) {
-  if (user.role === "admin") return true;
+async function isOwner(supa: SupabaseClient, userId: string, eventId: string) {
   const { data } = await supa.from("events").select("owner_id").eq("id", eventId).single();
-  return data?.owner_id === user.sub;
+  return data?.owner_id === userId;
+}
+
+async function isDelegate(supa: SupabaseClient, email: string | undefined, eventId: string) {
+  if (!email) return false;
+  const { data } = await supa
+    .from("event_admins")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("email", email)
+    .maybeSingle();
+  return Boolean(data?.id);
+}
+
+async function canAccess(
+  supa: SupabaseClient,
+  user: { sub: string; role: string; email?: string },
+  eventId: string
+) {
+  if (user.role === "admin") return true;
+  if (await isOwner(supa, user.sub, eventId)) return true;
+  if (await isDelegate(supa, user.email, eventId)) return true;
+  return false;
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -48,7 +69,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: e?.message || "Supabase config error" }, { status: 500 });
     }
 
-    if (!(await canAccess(supa, user, id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!(await canAccess(supa, user as any, id))) {
+      return NextResponse.json(
+        { error: "Forbidden", reason: "You are not owner, admin, or delegate for this event." },
+        { status: 403 }
+      );
+    }
 
     // Read multipart form
     const form = await req.formData();
