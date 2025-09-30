@@ -19,6 +19,39 @@ export default function EventCreation() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
+  // New: promote token from URL params or cookies into localStorage (once)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const search = new URLSearchParams(window.location.search);
+    const paramToken =
+      search.get("token") ||
+      search.get("access_token") ||
+      search.get("auth_token");
+
+    const cookieToken = document.cookie
+      .split(";")
+      .map((c) => c.trim().split("="))
+      .reduce<string | null>((acc, pair) => {
+        if (acc) return acc;
+        const [k, v] = pair;
+        if (!k) return acc;
+        const key = k.toLowerCase();
+        if (["token", "access_token", "auth_token"].includes(key)) {
+          return decodeURIComponent(v || "");
+        }
+        return acc;
+      }, null);
+
+    const picked = [paramToken, cookieToken].find(
+      (t) => t && t.trim().split(".").length === 3
+    );
+    if (picked && !localStorage.getItem("token")) {
+      localStorage.setItem("token", picked.trim());
+      // also set state immediately so user can submit without reload
+      setAuthToken(picked.trim());
+    }
+  }, []);
+
   // Try additional common key names if "token" not found
   const candidateKeys = ["token", "access_token", "auth_token"];
 

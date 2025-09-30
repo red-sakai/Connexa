@@ -172,6 +172,36 @@ export default function Main() {
     }
   }, [PAGE_SIZE, checkDelegationForChunk, hydrateWithCounts]);
 
+  // New: promote token from URL param or cookies into localStorage early
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const search = new URLSearchParams(window.location.search);
+    const candidateParam =
+      search.get("token") ||
+      search.get("access_token") ||
+      search.get("auth_token");
+    const cookieToken = document.cookie
+      .split(";")
+      .map((c) => c.trim())
+      .map((c) => c.split("="))
+      .reduce<string | null>((acc, [k, v]) => {
+        if (acc) return acc;
+        const key = k?.toLowerCase();
+        if (["token", "access_token", "auth_token"].includes(key)) {
+          return decodeURIComponent(v || "");
+        }
+        return acc;
+      }, null);
+
+    const chosen = [candidateParam, cookieToken].find(
+      (t) => t && t.trim().split(".").length === 3
+    );
+    if (chosen && !localStorage.getItem("token")) {
+      localStorage.setItem("token", chosen.trim());
+    }
+  }, []);
+
+  // Existing effect that reads token from localStorage remains below
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (t) {

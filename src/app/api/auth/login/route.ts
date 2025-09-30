@@ -113,13 +113,23 @@ export async function POST(req: Request) {
       role: row.role,
     });
 
-    return respond(200, {
+    const resp = NextResponse.json({
       success: true,
       data: {
         user: { id: row.user_id, email: row.email, role: row.role },
         token,
       },
+    }, { status: 200 });
+
+    resp.cookies.set("token", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      secure: process.env.NODE_ENV === "production",
     });
+
+    return resp;
   } catch (e) {
     console.error("Login route error:", e);
     return respond(500, {
