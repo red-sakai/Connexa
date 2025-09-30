@@ -46,7 +46,14 @@ async function isOwner(supa: SupabaseClient, userId: string, eventId: string) {
 }
 
 async function isDelegate(supa: SupabaseClient, email: string, eventId: string) {
-  const { data } = await supa.from("event_admins").select("id").eq("event_id", eventId).eq("email", email).maybeSingle();
+  // normalize email to lowercase for consistent matching
+  const normalized = email.toLowerCase();
+  const { data } = await supa
+    .from("event_admins")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("email", normalized)
+    .maybeSingle();
   return Boolean(data?.id);
 }
 
@@ -61,22 +68,27 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const { id } = await ctx.params;
     const supa = getServerSupabase();
 
-    const { user, error: authError } = await parseAuth(req);
-    if (authError) return respond(401, { success: false, error: authError });
-
     const url = new URL(req.url);
     const meCheck = url.searchParams.get("me");
 
-    // Membership check path (?me=1)
+    // Always try to parse auth (may fail)
+    const { user, error: authError } = await parseAuth(req);
+
     if (meCheck) {
+      // For membership probe we don't want a 401; just say not allowed if no/invalid token
+      if (authError) {
+        return respond(200, { success: true, allowed: false, data: { allowed: false } });
+      }
       const allowed =
         user.role === "admin" ||
         (await isOwner(supa, user.sub, id)) ||
         (await isDelegate(supa, user.email, id));
-      return respond(200, { success: true, data: { allowed } });
+      return respond(200, { success: true, allowed, data: { allowed } });
     }
 
-    // Listing requires owner or platform admin
+    // Non-membership (listing) requires valid auth
+    if (authError) return respond(401, { success: false, error: authError });
+
     const allowed =
       user.role === "admin" || (await isOwner(supa, user.sub, id));
     if (!allowed) {

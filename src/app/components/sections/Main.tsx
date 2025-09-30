@@ -334,6 +334,22 @@ export default function Main() {
     }
   }
 
+  // Helper: validate remote image URLs to prevent Next/Image errors
+  function isSafeImageUrl(url: string) {
+    try {
+      const u = new URL(url);
+      return (u.protocol === "https:" || u.protocol === "http:") && !!u.hostname;
+    } catch {
+      return false;
+    }
+  }
+
+  // Add: central create-event navigation helper
+  const EVENT_CREATE_PATH = "/eventcreation";
+  function goCreate() {
+    router.push(EVENT_CREATE_PATH);
+  }
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10">
@@ -408,10 +424,11 @@ export default function Main() {
                 </button>
               </div>
               <div className="mt-4 flex items-center gap-3">
-                <Button variant="outline" href="/eventcreation" className="flex-1">
+                {/* Replaced href with onClick */}
+                <Button variant="outline" onClick={goCreate} className="flex-1">
                   Create event
                 </Button>
-                <Button variant="outline" href="/eventcreation" className="flex-1">
+                <Button variant="outline" onClick={goCreate} className="flex-1">
                   Invite friends
                 </Button>
               </div>
@@ -422,7 +439,9 @@ export default function Main() {
               <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-600">
                 <p className="font-medium text-gray-900 mb-2">No events yet</p>
                 <p className="mb-4">Be the first to create an event for everyone to join.</p>
-                <Button variant="outline" href="/eventcreation">Create event</Button>
+                <Button variant="outline" onClick={goCreate}>
+                  Create event
+                </Button>
               </div>
             )}
 
@@ -444,14 +463,19 @@ export default function Main() {
                   </div>
                 </header>
 
-                {e.imageUrl ? (
+                {e.imageUrl && isSafeImageUrl(e.imageUrl) ? (
                   <div className="relative h-44 md:h-56 w-full">
                     <Image
                       src={e.imageUrl}
-                      alt={e.title}
+                      alt={e.title || "Event image"}
                       fill
+                      unoptimized
                       className="object-cover"
                       sizes="(max-width: 768px) 100vw, 50vw"
+                      onError={(ev) => {
+                        // Hide broken image container -> fallback shown below by state update
+                        (ev.currentTarget as HTMLImageElement).style.display = "none";
+                      }}
                     />
                   </div>
                 ) : (
