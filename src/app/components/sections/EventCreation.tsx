@@ -41,9 +41,41 @@ export default function EventCreation() {
     return typeof json.url === "string" ? json.url : null;
   }
 
+  // Normalize any error value (string | object) into a user-displayable string
+  function normalizeError(err: unknown): string {
+    if (!err) return "Unexpected error";
+    if (typeof err === "string") return err;
+    if (typeof err === "object") {
+      const anyErr = err as any;
+      if (typeof anyErr.message === "string") return anyErr.message;
+      if (typeof anyErr.code === "string" && typeof anyErr.message === "string") {
+        return `${anyErr.code}: ${anyErr.message}`;
+      }
+      try {
+        return JSON.stringify(anyErr);
+      } catch {
+        return "Error";
+      }
+    }
+    return String(err);
+  }
+
+  function getToken() {
+    return typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const token = getToken();
+    if (!token) {
+      setError("Please sign in to create an event.");
+      // optional redirect; comment out if you prefer to keep user on form
+      // router.push("/");
+      return;
+    }
+
     const event_at = buildEventAt();
     if (!title || !event_at) {
       setError("Please provide a title and date/time.");
@@ -51,18 +83,33 @@ export default function EventCreation() {
     }
     setSubmitting(true);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const res = await fetch("/api/events", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, description, event_at, host_name: hostName || null, location: location || null }),
+        body: JSON.stringify({
+          title,
+          description,
+          event_at,
+          host_name: hostName || null,
+          location: location || null,
+        }),
       });
-      const body = (await res.json().catch(() => ({}))) as { data?: { id?: string }; error?: string };
+
+      const body = (await res.json().catch(() => ({}))) as {
+        data?: { id?: string };
+        error?: unknown;
+      };
+
       if (!res.ok) {
-        setError(body?.error || "Failed to create event");
+        if (res.status === 401) {
+          setError("Session expired or unauthorized. Please log in again.");
+          // router.push("/"); // uncomment if you want auto-redirect
+          return;
+        }
+        setError(normalizeError(body?.error) || "Failed to create event");
         return;
       }
 
@@ -75,29 +122,33 @@ export default function EventCreation() {
               method: "PUT",
               headers: {
                 "Content-Type": "application/json",
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                Authorization: `Bearer ${token}`,
               },
               body: JSON.stringify({ image_url: imageUrl }),
             });
-            const putJson = (await putRes.json().catch(() => ({}))) as { error?: string };
+            const putJson = (await putRes.json().catch(() => ({}))) as {
+              error?: unknown;
+            };
             if (!putRes.ok) {
-              setError(putJson?.error || "Failed to attach image to event. Ensure 'image_url' column exists.");
+              setError(
+                normalizeError(putJson?.error) ||
+                  "Failed to attach image to event."
+              );
               return;
             }
           } else {
             setError("Image upload returned no URL. Check storage policies.");
             return;
           }
-        } catch (upErr: unknown) {
-          const message = upErr instanceof Error ? upErr.message : String(upErr);
-          setError(`Image upload failed: ${message}`);
+        } catch (upErr) {
+          setError(`Image upload failed: ${normalizeError(upErr)}`);
           return;
         }
       }
 
       router.push("/main");
-    } catch {
-      setError("Network error. Try again.");
+    } catch (err) {
+      setError(`Network error: ${normalizeError(err)}`);
     } finally {
       setSubmitting(false);
     }
