@@ -41,18 +41,24 @@ export default function EventCreation() {
     return typeof json.url === "string" ? json.url : null;
   }
 
+  // Helper type guard (keeps everything in unknown space)
+  function isRecord(val: unknown): val is Record<string, unknown> {
+    return typeof val === "object" && val !== null;
+  }
+
   // Normalize any error value (string | object) into a user-displayable string
   function normalizeError(err: unknown): string {
-    if (!err) return "Unexpected error";
+    if (err == null) return "Unexpected error";
     if (typeof err === "string") return err;
-    if (typeof err === "object") {
-      const anyErr = err as any;
-      if (typeof anyErr.message === "string") return anyErr.message;
-      if (typeof anyErr.code === "string" && typeof anyErr.message === "string") {
-        return `${anyErr.code}: ${anyErr.message}`;
+    if (isRecord(err)) {
+      const maybeMsg = err["message"];
+      const maybeCode = err["code"];
+      if (typeof maybeMsg === "string" && typeof maybeCode === "string") {
+        return `${maybeCode}: ${maybeMsg}`;
       }
+      if (typeof maybeMsg === "string") return maybeMsg;
       try {
-        return JSON.stringify(anyErr);
+        return JSON.stringify(err);
       } catch {
         return "Error";
       }
