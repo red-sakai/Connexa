@@ -11,17 +11,32 @@ function getBearer(req: Request) {
   return token;
 }
 
+// NEW: sanitize env (mirrors attendees route)
+function sanitizeEnvValue(raw?: string) {
+  if (!raw) return raw;
+  return raw.trim().split(/\s+/)[0];
+}
+
 // Build a Supabase client using service role on the server (falls back to anon if needed)
 function getServerSupabase(): SupabaseClient {
-  const url = process.env.SUPABASE_URL;
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const anon = process.env.SUPABASE_API_KEY;
-  if (!url) {
-    throw new Error("SUPABASE_URL is not set");
+  const rawUrl = process.env.SUPABASE_URL;
+  const rawService = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const rawAnon = process.env.SUPABASE_API_KEY;
+
+  const url = sanitizeEnvValue(rawUrl);
+  const service = sanitizeEnvValue(rawService);
+  const anon = sanitizeEnvValue(rawAnon);
+
+  if (!url) throw new Error("SUPABASE_URL is not set");
+  if (!service && !anon) throw new Error("SUPABASE_SERVICE_ROLE_KEY or SUPABASE_API_KEY is not set");
+
+  if (/\bJWT_SECRET=/.test(String(rawService))) {
+    console.warn(
+      "[env warning] SUPABASE_SERVICE_ROLE_KEY appears to contain another assignment (e.g. 'JWT_SECRET='). " +
+        "Fix your .env so each VAR=VALUE is on its own line."
+    );
   }
-  if (!service && !anon) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY or SUPABASE_API_KEY is not set");
-  }
+
   return createClient(url, service || (anon as string));
 }
 
@@ -66,7 +81,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       .maybeSingle();
 
     if (eventErr) {
-      return NextResponse.json({ error: "Failed to load event", details: eventErr.message }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: "Failed to load event",
+          details: eventErr.message,
+          hint: /permission/i.test(eventErr.message)
+            ? "Check that service role key is correct (env may be malformed)."
+            : undefined,
+        },
+        { status: 500 }
+      );
     }
     if (!eventRow) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -125,6 +149,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     return NextResponse.json({ url }, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: "Bad Request", details: String(e?.message || e) }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: "Bad Request",
+        details: String(e?.message || e),
+        hint: /SUPABASE_URL|SERVICE_ROLE_KEY/i.test(String(e?.message || e))
+          ? "Verify .env formatting (each VAR=VALUE on its own line)."
+          : undefined,
+      },
+      { status: 400 }
+    );
   }
 }
