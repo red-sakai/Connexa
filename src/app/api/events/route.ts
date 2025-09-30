@@ -9,8 +9,10 @@ function respond(status: number, payload: unknown) {
 
 function getBearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
-  const [, token] = auth.split(" ");
-  return token;
+  const parts = auth.split(/\s+/);
+  if (parts.length < 2) return "";
+  if (parts[0].toLowerCase() !== "bearer") return "";
+  return parts[1].trim();
 }
 
 interface CreateEventBody {

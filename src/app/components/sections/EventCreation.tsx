@@ -19,11 +19,27 @@ export default function EventCreation() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
+  // Try additional common key names if "token" not found
+  const candidateKeys = ["token", "access_token", "auth_token"];
+
+  function readTokenFromStorage(): string | null {
+    if (typeof window === "undefined") return null;
+    for (const k of candidateKeys) {
+      const v =
+        localStorage.getItem(k) ||
+        sessionStorage.getItem(k);
+      if (v && v.trim()) return v.trim();
+    }
+    return null;
+  }
+
   // Hydrate token after mount
   useEffect(() => {
-    const t =
-      (typeof window !== "undefined" && (localStorage.getItem("token") || sessionStorage.getItem("token"))) ||
-      getTokenFromCookies();
+    const t = readTokenFromStorage() || getTokenFromCookies();
+    if (!t) {
+      // Lightweight debug (remove if undesired)
+      console.debug("[EventCreation] No auth token found in storage/cookies.");
+    }
     setAuthToken(t && t.trim() ? t.trim() : null);
   }, []);
 
@@ -89,11 +105,13 @@ export default function EventCreation() {
   function rehydrateToken(): string | null {
     const t =
       authToken ||
-      (typeof window !== "undefined" &&
-        (localStorage.getItem("token") || sessionStorage.getItem("token"))) ||
+      readTokenFromStorage() ||
       getTokenFromCookies();
     const cleaned = t && t.trim() ? t.trim() : null;
     if (cleaned !== authToken) setAuthToken(cleaned);
+    if (!cleaned) {
+      console.debug("[EventCreation] rehydrateToken -> null (not logged in / key mismatch)");
+    }
     return cleaned;
   }
 
