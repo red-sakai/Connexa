@@ -106,7 +106,7 @@ export default function EventCreation() {
     <section className="min-h-screen bg-gray-50 px-6 pt-24 pb-16">
       <div className="max-w-xl mx-auto">
         <div className="mb-6">
-          <Button variant="outline" href="/" className="!px-3 !py-2 text-sm">
+          <Button variant="outline" href="/main" className="!px-3 !py-2 text-sm">
             ← Back
           </Button>
         </div>

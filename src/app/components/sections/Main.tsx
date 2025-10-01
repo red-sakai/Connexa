@@ -5,9 +5,6 @@ import { useState, useEffect, useCallback } from "react";
 import Button from "../ui/Button";
 import { useRouter } from "next/navigation";
 import {
-  FiHeart,
-  FiMessageCircle,
-  FiShare2,
   FiMapPin,
   FiClock,
   FiUsers,
@@ -22,7 +19,6 @@ type EventItem = {
   when: string;
   where: string;
   attendees: number;
-  liked: boolean;
   description: string;
   bannerClass: string;
   ownerId?: string;
@@ -49,6 +45,8 @@ export default function Main() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [delegateSet, setDelegateSet] = useState<Set<string>>(new Set());
+  // Clipboard feedback
+  const [copied, setCopied] = useState(false);
   const PAGE_SIZE = 4;
   const router = useRouter();
 
@@ -142,7 +140,6 @@ export default function Main() {
             : "TBA",
           where: ev.location || "TBA",
           attendees: 0, // will be hydrated per page
-          liked: false,
           description: ev.description ?? "",
           bannerClass: palette[i % palette.length],
           ownerId: ev.owner_id ?? undefined,
@@ -187,10 +184,26 @@ export default function Main() {
     router.push("/");
   }
 
-  function toggleLike(id: string) {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, liked: !e.liked } : e))
-    );
+  async function copyInviteLink() {
+    const url = "https://connexa-aws.vercel.app/";
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // silent
+    }
   }
 
   // Refetch next page instead of all
@@ -357,29 +370,6 @@ export default function Main() {
                 </Button>
               </div>
             </div>
-
-            <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-gray-900 mb-3">
-                Shortcuts
-              </p>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <a className="text-gray-700 hover:text-indigo-600" href="#">
-                    My Events
-                  </a>
-                </li>
-                <li>
-                  <a className="text-gray-700 hover:text-indigo-600" href="#">
-                    Saved
-                  </a>
-                </li>
-                <li>
-                  <a className="text-gray-700 hover:text-indigo-600" href="#">
-                    Following
-                  </a>
-                </li>
-              </ul>
-            </div>
           </aside>
 
           {/* Feed */}
@@ -399,11 +389,19 @@ export default function Main() {
                 </button>
               </div>
               <div className="mt-4 flex items-center gap-3">
-                <Button variant="outline" href="/eventcreation" className="flex-1">
+                <Button
+                  variant="outline"
+                  href="/eventcreation"
+                  className="flex-1 text-center justify-center"
+                >
                   Create event
                 </Button>
-                <Button variant="outline" href="/eventcreation" className="flex-1">
-                  Invite friends
+                <Button
+                  variant="outline"
+                  onClick={copyInviteLink}
+                  className="flex-1"
+                >
+                  {copied ? "Link copied!" : "Invite friends"}
                 </Button>
               </div>
             </div>
@@ -469,52 +467,37 @@ export default function Main() {
                     </span>
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between border-t pt-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => toggleLike(e.id)}
-                        aria-pressed={e.liked}
-                        className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                          e.liked
-                            ? "border-indigo-600 text-indigo-700 bg-indigo-50"
-                            : "border-gray-200 text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        <FiHeart className={e.liked ? "text-indigo-600" : ""} />
-                        Like
-                      </button>
-                      <button
-                        className="inline-flex items-center gap-2 rounded-lg px-4 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        aria-label="Comment on event"
-                      >
-                        <FiMessageCircle />
-                        Comment
-                      </button>
-                      <button
-                        className="inline-flex items-center gap-2 rounded-lg px-4 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        aria-label="Share event"
-                      >
-                        <FiShare2 />
-                        Share
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
+                  <div className="mt-5 border-t pt-4">
+                    <div
+                      className="
+                        flex flex-col sm:flex-row flex-wrap md:justify-end
+                        gap-2
+                      "
+                    >
                       {canManage(e) && (
                         <Button
                           variant="outline"
-                          className="!px-4 !py-2"
+                          className="w-full md:w-auto !px-4 !py-2"
                           onClick={() => router.push(`/events/${e.id}/admin`)}
                         >
                           Admin Panel
                         </Button>
                       )}
                       {canEdit(e) && (
-                        <Button variant="outline" className="!px-4 !py-2" onClick={() => openEdit(e)}>
+                        <Button
+                          variant="outline"
+                          className="w-full md:w-auto !px-4 !py-2"
+                          onClick={() => openEdit(e)}
+                        >
                           Edit
                         </Button>
                       )}
                       {!isOwner(e) && (
-                        <Button variant="outline" href={`/tickets/${e.id}`} className="!px-4 !py-2">
+                        <Button
+                          variant="outline"
+                          href={`/tickets/${e.id}`}
+                          className="w-full md:w-auto !px-4 !py-2"
+                        >
                           Get tickets
                         </Button>
                       )}
@@ -586,7 +569,7 @@ export default function Main() {
                 Suggestions
               </p>
               <div className="space-y-3">
-                {["PUP Devs", "Cloud Club", "UI Circle"].map((g) => (
+                {["PUP Devs", "AWSCC PUP", "Jhered Republica"].map((g) => (
                   <div key={g} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-lg bg-gray-800 text-white text-xs font-bold flex items-center justify-center">
